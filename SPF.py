@@ -60,6 +60,75 @@ results=cur.fetchall()
 for table in results:
     print table
 
+def moveConveyor(length):  #keeps track of where the pusher's stroke is
+    if(length>0):
+        print "yup, moving forwards"
+        with spfdb:
+            cur = spfdb.cursor()
+            cur.execute("select * from panel_panel")
+            try:
+                row = fetchoneDict(cur)
+                currentStroke=float(row['strokePosition'])
+                fullStroke=float(row['full_stroke'])
+                strokeLead=float(row['stroke_lead'])
+                strokeEnd=float(row['stroke_end'])
+                print "current stroke position: %f" % currentStroke
+                if(currentStroke+length)<fullStroke:   #  if we can perform this motion just by pushing the current panel, just do it
+                    print "we can do this just by pushing the current backing"
+                    if(currentStroke<strokeLead):
+                        advance=strokeLead-currentStroke
+                        cmd="G0X"+str(advance)+chr(13)
+                        ser.write(cmd)
+                        flushReceiveBuffer()
+                        currentStroke=strokeLead
+                        
+                    cmd="G0X"+str(length)+chr(13)
+                    ser.write(cmd)
+                    flushReceiveBuffer()
+                    currentStroke=currentStroke+length
+                    mysqlString="UPDATE panel_panel set strokePosition=\"%f\" where id='1'" % currentStroke
+                    print mysqlString
+                    cur.execute(mysqlString) 
+                else:
+                    while(currentStroke+length)>fullStroke:
+                        print "we need to push at least two different backings to move this far"
+                        remaining=fullStroke-currentStroke
+                        cmd="G0X"+str(remaining)+chr(13)   #push what you can with the current panel
+                        ser.write(cmd)
+                        flushReceiveBuffer()
+                        length=length-remaining
+                        print cmd
+                        
+                        cmd="G0X-"+str(fullStroke)+chr(13)  #retract the pusher all the way
+                        ser.write(cmd)
+                        flushReceiveBuffer()
+                        print cmd
+                        
+                        
+                        cmd="G0X"+str(strokeLead+strokeEnd)+chr(13)  #advance the pusher until it's contacting the next panel
+                        ser.write(cmd)
+                        flushReceiveBuffer()
+                        print cmd
+                        currentStroke=strokeLead+strokeEnd
+                    #now we've pushed all the full panels we need to push, and we just finish the last panel
+                    cmd="G0X"+str(length)+chr(13)  #push the remaining distance
+                    ser.write(cmd)
+                    flushReceiveBuffer()
+                    currentStroke=currentStroke+length
+                    mysqlString="UPDATE panel_panel set strokePosition=\"%f\" where id='1'" % currentStroke
+                    print mysqlString
+                    cur.execute(mysqlString) 
+                    
+            except:
+                traceback.print_exc(file=sys.stdout)            
+                print "trouble getting the panel info from the database"
+                pass
+    else:
+        cmd="G0X"+str(length)+chr(13)  #advance the pusher until it's contacting the next panel
+        print cmd
+        ser.write(cmd)
+        flushReceiveBuffer()        
+
 def doWonders():
     print("checking database")
     with spfdb:
@@ -98,6 +167,9 @@ def doWonders():
                         solderingStationUp()
                     elif(substr == '16'):
                         solderingStationDown()
+                elif(cmd[0]=='M'):  #conveyor command
+                    length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
+                    moveConveyor(float(length))
                 elif(cmd[:3]=="G4P"):   #  intercept a sleep GCode command and run it on the pi rather than the G
                     delay=float(cmd[3:])/1000
                     time.sleep(delay)
@@ -116,8 +188,8 @@ def doWonders():
                     #is done with the motion     
                     flushReceiveBuffer()
 
-            print ("UPDATE command_command set status=\"executed\" where id='%s'") % id
             str = "UPDATE command_command set status=\"executed\" where id='%s'" % id
+            print str
             cur.execute(str)
         except:
             traceback.print_exc(file=sys.stdout)            
