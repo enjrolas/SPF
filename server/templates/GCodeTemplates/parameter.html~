@@ -1,0 +1,1 @@
+{"gc" : "${{ command.command }}={{ command.parameter }}"}

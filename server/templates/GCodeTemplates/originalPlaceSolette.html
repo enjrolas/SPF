@@ -1,0 +1,15 @@
+{% block prefix %}{% endblock %}{% block placeSolette %}
+g0Z{{ factoryState.soletteThickness }}
+g0A{{ factoryState.tabbingLength }}
+!2  {# tabbing cutter down #}
+!1 {# tabbing cutter up #}
+!7  {# open the suction solenoid #}
+!3  {# lower the suction head #}
+G4P{{ factoryState.suctionDelay }}  {# dwell 100 ms #}
+!4  {# raise the suction head #}
+g4y{{ factoryState.conveyorPosition }}  {# move the pick head over the conveyor #}
+!3  {# lower the suction head #}
+!8  {# turn off the suction  #}
+G4P{{ factoryState.suctionReleaseTime }}  {# dwell 100ms #}
+!4  {# raise the suction head #}
+g0x{{ factoryState.soletteLength|add:factoryState.soletteSpacing }}y-{{ factoryState.conveyorPosition }}   {# move the pick head over the solette hopper and move the conveyor one solette length #}{% endblock %}{% block postfix %}{% endblock %}

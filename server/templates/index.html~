@@ -1,0 +1,23 @@
+<html>
+<head>
+<script type="text/javascript">
+    function pythonizer(){
+        $("#msgid").append("it SHOULD post after this is appended");
+        $.ajax({ 
+        url: '/django/ajax/', 
+        type: 'POST', 
+        data: {'obj': "test string"}, 
+        dataType: 'json', 
+        contentType: "application/json; charset=utf-8",
+        success: function(response) {
+                   alert(response);
+            }
+        }); 
+        }
+</script>    
+</head>
+<div id="msgid">
+</div>
+
+<input type="button" id="myButton" value="click me" onclick="pythonizer()" />
+</html>

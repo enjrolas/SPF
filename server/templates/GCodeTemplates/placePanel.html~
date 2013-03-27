@@ -1,0 +1,13 @@
+{% extends "placeSolette.html" %}
+{% block prefix %} {# this gcode handles popping a backing from the hopper and advancing it until it's ready to place solettes #}
+{
+"beginPanel":
+{"gc" : 
+, "placeSolette":
+{% endblock %}
+, 
+{% block postfix %}  {# here's the gcode that happens after you place all the solettes #}
+,"endPanel":
+
+}
+{% endblock %}

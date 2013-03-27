@@ -1,0 +1,14 @@
+{"gc" : "g0y{{ factoryState.hopperPosition }} "}  //move the pick head over the solette hopper
+{"gc" : "g0A{{ factoryState.tabbingLength }}"}
+{"gc" : "S0"}  //tabbing cutter down
+{"gc" : "S1600"} //tabbing cutter up
+{"gc" : "M7"}  //open the suction solenoid
+{"gc" : "M3"}  //lower the suction head
+{"gc" : "G4 P{{ factoryState.suctionDelay }}"}  //dwell 100 ms
+{"gc" : "M4"}  //raise the suction head
+{"gc" : "g0y{{ factoryState.conveyerPosition }}"}  //move the pick head over the conveyor
+{"gc" : "M3"}  //lower the suction head
+{"gc" : "M9"}  //turn off the suction 
+{"gc" : "G4 P{{ factoryState.suctionReleaseTime }}"}  //dwell 100ms
+{"gc" : "M4"}  // raise the suction head
+{"gc" : "g0x{{ factoryState.soletteLength|add:factoryState.soletteSpacing }}"}  //move the conveyor one solette length

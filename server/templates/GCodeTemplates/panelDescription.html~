@@ -1,0 +1,1 @@
+{{ command.parameter }} V, {{ factoryState.soletteWidth }}x{{ factoryState.soletteLength }} solettes, {{ factoryState.backingWidth }}x{{ factoryState.backingLength }} backings, {{ command.quantity }} panels

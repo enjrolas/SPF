@@ -1,0 +1,15 @@
+<form action="/order/" method="post">{% csrf_token %}
+<p><label for="id_customerid">CustomerID:</label>
+    <input id="id_customerid" type="text" name="customerid" maxlength="20" /></p>
+<p><label for="id_voltage">Voltage:</label>
+    <input id="id_voltage" type="number" name="voltage" min="1" max="5"></p>
+<p><label for="id_current">Current:</label>
+    <input id="id_current" type="number" name="current" min="100" max="1000"></p>
+<p><label for="id_width">Width:</label>
+    <input id="id_width" type="number" name="width" min="1" max="20"></p>
+<p><label for="id_height">Height:</label>
+    <input id="id_height" type="number" name="height" min="1" max="10"></p>
+<input type="hidden" name="status" value="PENDING">
+<input type="submit" value="Place order" />
+</form>
+

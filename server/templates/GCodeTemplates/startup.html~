@@ -1,0 +1,38 @@
+    var_1ma
+    var_2ma
+    var_3ma
+    var_4ma
+
+    #axis settings
+    
+    #feed rate
+    var_xfr
+    var_yfr
+    var_zfr
+    var_afr
+
+    #max velocity
+    var_xvm
+    var_yvm
+    var_zvm
+    var_avm
+
+    #travel
+    var_xtr
+    var_ytr
+    var_ztr
+    var_atr
+
+    #step angle
+    var_xsa
+    var_ysa
+    var_zsa
+    var_asa
+
+    #power mode
+    var_1pm
+    var_2pm
+    var_3pm
+    var_4pm
+    
+    #raw materials in stock

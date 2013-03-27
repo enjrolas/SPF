@@ -1,0 +1,9 @@
+G90 {# absolute mode #}
+$ysv=5000
+$ySM=1
+$yTM=350 {# max travel is 350mm #}
+$yLB=5 {# backoff 5mm before latching #}
+$yJD=100 {# axis acceleration setting #}
+$yZB=0  {# no backoff from the homing switch #}
+G28.1Y0
+G91 {# and back to relative mode #}

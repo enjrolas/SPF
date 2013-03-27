@@ -1,0 +1,10 @@
+from django.db import models
+class Order(models.Model):
+    command  =   models.CharField(max_length=20)
+    commandTimeStamp_    =   models.DateTimeField(auto_now=True)
+    status      =   models.CharField(max_length=20)
+    statusTimeStamp   =   models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return self.name
+

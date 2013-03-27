@@ -1,0 +1,9 @@
+{% for command in commands %}
+{{ command.command }},
+{{ command.parameter }},
+{{ command.commandTimeStamp }},
+{{ command.description }},
+{{ command.json }}<br/>
+
+{% endfor %}
+
