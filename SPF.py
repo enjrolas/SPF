@@ -69,9 +69,10 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
             try:
                 row = fetchoneDict(cur)
                 currentStroke=float(row['strokePosition'])
-                fullStroke=float(row['full_stroke'])
+                panelLength=float(row['length'])
                 strokeLead=float(row['stroke_lead'])
                 strokeEnd=float(row['stroke_end'])
+                fullStroke=panelLength+strokeLead+strokeEnd
                 print "current stroke position: %f" % currentStroke
                 if(currentStroke+length)<fullStroke:   #  if we can perform this motion just by pushing the current panel, just do it
                     print "we can do this just by pushing the current backing"
@@ -167,6 +168,11 @@ def doWonders():
                         solderingStationUp()
                     elif(substr == '16'):
                         solderingStationDown()
+                    elif(substr == '17'):
+                        solderingStationOn()
+                    elif(substr == '18'):
+                        solderingStationOff()
+                        
                 elif(cmd[0]=='M'):  #conveyor command
                     length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
                     moveConveyor(float(length))
