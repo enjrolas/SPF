@@ -9,6 +9,8 @@ import re
 import RPi.GPIO as GPIO
 import sys, traceback
 from pizypwm import *
+from factory import Point, Panel
+
 
 E_STOP=3
 BACKINGS_SOLDERER=15
@@ -40,6 +42,9 @@ GPIO.setup(PICK_HEAD, GPIO.OUT) # pick head solenoid
 solderingPower = PiZyPwm(100, SOLDERING_POWER, GPIO.BOARD)
 solderingPower.start(100)
 
+points=[] #  
+
+
 ser = None
 port = "/dev/ttyUSB0"
 for tries in range(1,5):
@@ -62,8 +67,9 @@ results=cur.fetchall()
 for table in results:
     print table
 
-def moveConveyor(length):  #keeps track of where the pusher's stroke is
-    print "yup, moving forwards"
+def moveConveyor(length):  
+    """moveConveyor() is a dumb motion command.  advanceConveyor() keeps track of everything on the board and ensures that, as you're moving, you
+    stop at every point of interest and perform the right action"""
     with spfdb:
         cur = spfdb.cursor()
         cur.execute("select * from panel_panel")
@@ -92,7 +98,7 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                     ser.write(cmd)
                     flushReceiveBuffer()
                     currentStroke=currentStroke+length
-                    conveyorHeadPosition=conveyorHeadPosition+length
+                    incrementPoints(length)
                     mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
                     print mysqlString
                     cur.execute(mysqlString) 
@@ -105,7 +111,7 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                         flushReceiveBuffer()
                         length=length-remaining
                         print cmd
-                        conveyorHeadPoistion=conveyorHeadPosition+remaining
+                        incrementPoints(remaining)
 
                         cmd="G0X-"+str(fullStroke)+chr(13)  #retract the pusher all the way
                         ser.write(cmd)
@@ -117,13 +123,12 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                         flushReceiveBuffer()
                         print cmd
                         currentStroke=strokeLead+strokeEnd
-                        conveyorHeadPosition=conveyorHeadPosition+strokeEnd
                     #now we've pushed all the full panels we need to push, and we just finish the last panel
                     cmd="G0X"+str(length)+chr(13)  #push the remaining distance
                     ser.write(cmd)
                     flushReceiveBuffer()
-                    currentStroke=currentStroke+length
-                    conveyorHeadPosition=conveyorHeadPosition+length
+                    currentStroke+=length
+                    incrementPoints(length)
                     mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
                     print mysqlString
                     cur.execute(mysqlString) 
@@ -133,8 +138,8 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                 print cmd
                 ser.write(cmd)
                 flushReceiveBuffer()        
-                currentStroke=currentStroke+length
-                conveyorHeadPosition=conveyorHeadPosition+length
+                currentStroke+=length
+                conveyorHeadPosition+=length
                 mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
                 cur.execute(mysqlString) 
         except:
@@ -143,6 +148,20 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
             pass
 
 
+def advanceConveyor(length):
+    min=length
+    for point in points:
+        if point.remainingDistance<min:
+            min=point.remainingDistance
+    moveConveyor(min):
+    if length>min:
+        moveConveyor(length-min)
+
+def incrementPoints(length):
+    for point in points:
+        point.position+=length
+        point.remainingDistance-=length
+        
 def doWonders():
     print("checking database")
     with spfdb:
@@ -186,6 +205,29 @@ def doWonders():
                         lightsOn()
                     elif(substr == '20'):
                         lightsOff()
+                elif(cmd[0:4]=="mark"):
+                    parts=cmd.split(":")
+                    point=Point()
+                    point.pointType=parts[1]
+                    if len(points)>0:
+                        lastPoint=points[-1]
+                        point.position=lastPoint.position+float(parts[2])
+                    else:
+                        point.position=float(parts[2])
+                    
+                    #delete this hardcoded bullshit later and put in something better
+                    if(point.pointType=="start"):
+                        point.remainingDistance=655-point.position
+                    elif(point.pointType=="solder"):
+                        point.remainingDistance=443-point.position
+                    elif(point.pointType=="tabbing"):
+                        point.remainingDistance=311-point.position
+                    elif(point.pointType=="solette"):
+                        point.remainingDistance=316-point.position
+                    elif(point.pointType=="test"):
+                        point.remainingDistance=527-point.position
+                    elif(point.pointType=="end"):
+                        point.remainingDistance=655-point.position
 
                 elif(cmd[0]=='M'):  #conveyor command
                     length=cmd[1:]  # the rest of the command is the distance that the conveyor should move

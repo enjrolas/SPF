@@ -1,0 +1,5 @@
+class Point:
+    """points of interest on a solar panel"""
+    panelId=0
+    pointType=""
+    position=0
