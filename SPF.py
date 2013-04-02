@@ -111,14 +111,13 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                         ser.write(cmd)
                         flushReceiveBuffer()
                         print cmd
-                        
-                        
+                                               
                         cmd="G0X"+str(strokeLead+strokeEnd)+chr(13)  #advance the pusher until it's contacting the next panel
                         ser.write(cmd)
                         flushReceiveBuffer()
                         print cmd
                         currentStroke=strokeLead+strokeEnd
-                        conveyorHeadPoistion=conveyorHeadPosition+strokeLead+strokeEnd
+                        conveyorHeadPosition=conveyorHeadPosition+strokeEnd
                     #now we've pushed all the full panels we need to push, and we just finish the last panel
                     cmd="G0X"+str(length)+chr(13)  #push the remaining distance
                     ser.write(cmd)
