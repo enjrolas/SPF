@@ -4,6 +4,8 @@ class Point:
     pointType=""
     position=0
     remainingDistance=0
+    def __str__(self):
+        return "point type:  %s\t position: %f\t remaining distance: %f" %(self.pointType, self.position, self.remainingDistance)
 
 class Panel:
     """Panel data structure"""

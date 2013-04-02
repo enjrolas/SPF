@@ -161,7 +161,8 @@ def incrementPoints(length):
     for point in points:
         point.position+=length
         point.remainingDistance-=length
-        
+    points[:]=[point for point in points if point.remainingDistance>0] #get rid of points that have dropped off the edge of the earth/conveyor
+            
 def doWonders():
     print("checking database")
     with spfdb:
@@ -205,7 +206,7 @@ def doWonders():
                         lightsOn()
                     elif(substr == '20'):
                         lightsOff()
-                elif(cmd[0:4]=="mark"):
+                elif(cmd.find("mark")!=-1):
                     parts=cmd.split(":")
                     point=Point()
                     point.pointType=parts[1]
@@ -228,6 +229,11 @@ def doWonders():
                         point.remainingDistance=527-point.position
                     elif(point.pointType=="end"):
                         point.remainingDistance=655-point.position
+                    points.append(point)
+
+                elif(cmd.find("advance")!=-1):
+                    parts=cmd.split(":")
+                    advanceConveyor(float(parts[1]))
 
                 elif(cmd[0]=='M'):  #conveyor command
                     length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
@@ -257,9 +263,8 @@ def doWonders():
             str = "UPDATE command_command set status=\"executed\" where id='%s'" % id
             print str
             cur.execute(str)
-        except:
-            traceback.print_exc(file=sys.stdout)            
-            print "something didn't work out"
+        except:   # no waiting commands
+            print "no waiting commands"
             pass
 
 def fetchoneDict(cursor):
