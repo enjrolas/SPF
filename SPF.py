@@ -12,8 +12,6 @@ from pizypwm import *
 
 E_STOP=3
 BACKINGS_SOLDERER=15
-
-
 VACUUM_GENERATOR=7
 SOLDERING_STATION=8
 TEST_STATION=10
@@ -65,20 +63,22 @@ for table in results:
     print table
 
 def moveConveyor(length):  #keeps track of where the pusher's stroke is
-    if(length>0):
-        print "yup, moving forwards"
-        with spfdb:
-            cur = spfdb.cursor()
-            cur.execute("select * from panel_panel")
-            try:
-                row = fetchoneDict(cur)
-                currentStroke=float(row['strokePosition'])
-                panelLength=float(row['length'])
-                strokeLead=float(row['stroke_lead'])
-                strokeEnd=float(row['stroke_end'])
-                fullStroke=panelLength+strokeLead+strokeEnd
-                conveyorHeadPosition=float(row['conveyorHeadPosition'])
-                print "current stroke position: %f" % currentStroke
+    print "yup, moving forwards"
+    with spfdb:
+        cur = spfdb.cursor()
+        cur.execute("select * from panel_panel")
+        try:
+            print "pulling motion parameters from the database"
+            row = fetchoneDict(cur)
+            currentStroke=float(row['strokePosition'])
+            panelLength=float(row['length'])
+            strokeLead=float(row['stroke_lead'])
+            strokeEnd=float(row['stroke_end'])
+            fullStroke=panelLength+strokeLead+strokeEnd
+            conveyorHeadPosition=float(row['conveyorHeadPosition'])
+            print "current stroke position: %f" % currentStroke
+            print "conveyor head position: %f" % conveyorHeadPosition
+            if(length>0):                
                 if(currentStroke+length)<fullStroke:   #  if we can perform this motion just by pushing the current panel, just do it
                     print "we can do this just by pushing the current backing"
                     if(currentStroke<strokeLead):
@@ -97,7 +97,7 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                     print mysqlString
                     cur.execute(mysqlString) 
                 else:
-                    while(currentStroke+length)>fullStroke:
+                    while(currentStroke+length)>=fullStroke:
                         print "we need to push at least two different backings to move this far"
                         remaining=fullStroke-currentStroke
                         cmd="G0X"+str(remaining)+chr(13)   #push what you can with the current panel
@@ -118,6 +118,7 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                         flushReceiveBuffer()
                         print cmd
                         currentStroke=strokeLead+strokeEnd
+                        conveyorHeadPoistion=conveyorHeadPosition+strokeLead+strokeEnd
                     #now we've pushed all the full panels we need to push, and we just finish the last panel
                     cmd="G0X"+str(length)+chr(13)  #push the remaining distance
                     ser.write(cmd)
@@ -127,16 +128,21 @@ def moveConveyor(length):  #keeps track of where the pusher's stroke is
                     mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
                     print mysqlString
                     cur.execute(mysqlString) 
-                    
-            except:
-                traceback.print_exc(file=sys.stdout)            
-                print "trouble getting the panel info from the database"
-                pass
-    else:
-        cmd="G0X"+str(length)+chr(13)  #advance the pusher until it's contacting the next panel
-        print cmd
-        ser.write(cmd)
-        flushReceiveBuffer()        
+                    print "conveyor head position: %f" % conveyorHeadPosition                    
+            else:
+                cmd="G0X"+str(length)+chr(13)  #advance the pusher until it's contacting the next panel
+                print cmd
+                ser.write(cmd)
+                flushReceiveBuffer()        
+                currentStroke=currentStroke+length
+                conveyorHeadPosition=conveyorHeadPosition+length
+                mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
+                cur.execute(mysqlString) 
+        except:
+            traceback.print_exc(file=sys.stdout)            
+            print "trouble getting the panel info from the database"
+            pass
+
 
 def doWonders():
     print("checking database")
@@ -165,10 +171,6 @@ def doWonders():
                         vacuumGeneratorOn()
                     elif(substr == '8'):
                         vacuumGeneratorOff()
-                    elif(substr == '9'):
-                        compressorOn()
-                    elif(substr == '10'):
-                        compressorOff()
                     elif(substr == '13'):
                         testStationUp()
                     elif(substr == '14'):
@@ -194,6 +196,7 @@ def doWonders():
                     setSolderingPower(int(power))
                 elif(cmd[:3]=="G4P"):   #  intercept a sleep GCode command and run it on the pi rather than the G
                     delay=float(cmd[3:])/1000
+                    print delay
                     time.sleep(delay)
                 elif(cmd == 'g28.1'):
                     cmd = parsable + chr(13)
