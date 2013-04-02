@@ -10,7 +10,7 @@ import RPi.GPIO as GPIO
 import sys, traceback
 from pizypwm import *
 from factory import Point, Panel
-
+import pickle
 
 E_STOP=3
 BACKINGS_SOLDERER=15
@@ -117,7 +117,7 @@ def moveConveyor(length):
                         ser.write(cmd)
                         flushReceiveBuffer()
                         print cmd
-                                               
+ 
                         cmd="G0X"+str(strokeLead+strokeEnd)+chr(13)  #advance the pusher until it's contacting the next panel
                         ser.write(cmd)
                         flushReceiveBuffer()
@@ -147,21 +147,26 @@ def moveConveyor(length):
             print "trouble getting the panel info from the database"
             pass
 
-
-def advanceConveyor(length):
-    min=length
-    for point in points:
-        if point.remainingDistance<min:
-            min=point.remainingDistance
-    moveConveyor(min):
-    if length>min:
-        moveConveyor(length-min)
-
+                         
 def incrementPoints(length):
     for point in points:
         point.position+=length
         point.remainingDistance-=length
     points[:]=[point for point in points if point.remainingDistance>0] #get rid of points that have dropped off the edge of the earth/conveyor
+    points.sort(key=lambda point: point.remainingDistance)  #sort the list, closest objects first
+
+def point():   
+    """move to next point in list"""
+    if len(points)>0:
+        currentPoint=points[0]
+        moveConveyor(currentPoint.remainingDistance)
+        with spfdb:
+            cur = spfdb.cursor()
+            cur.execute("select * from actions_actions")
+            try:
+                row = fetchoneDict(cur)
+                print row        
+
             
 def doWonders():
     print("checking database")
@@ -235,6 +240,9 @@ def doWonders():
                     parts=cmd.split(":")
                     advanceConveyor(float(parts[1]))
 
+                elif(cmd.find("point")!=-1):
+                    point()
+
                 elif(cmd[0]=='M'):  #conveyor command
                     length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
                     moveConveyor(float(length))
@@ -265,8 +273,12 @@ def doWonders():
             cur.execute(str)
         except:   # no waiting commands
             print "no waiting commands"
+#points.sort(key=Point.remainingDistance, reverse=True)
+            for point in points:
+                print point
+            
             pass
-
+        
 def fetchoneDict(cursor):
     row = cursor.fetchone()
     if row is None: return None
