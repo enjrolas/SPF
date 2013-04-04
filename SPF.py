@@ -11,6 +11,7 @@ import sys, traceback
 from pizypwm import *
 from factory import Point, Panel
 import pickle
+import urllib, urllib2
 
 E_STOP=3
 BACKINGS_SOLDERER=15
@@ -60,16 +61,11 @@ print("TinyG found! Connection established.")
 
 print("connecting to database....")
 spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="djangoSPF")
-print("connected!  Having a look around..")
-cur = spfdb.cursor()
-cur.execute("show tables")
-results=cur.fetchall()
-for table in results:
-    print table
+print("connected!")
+
 
 def moveConveyor(length):  
-    """moveConveyor() is a dumb motion command.  advanceConveyor() keeps track of everything on the board and ensures that, as you're moving, you
-    stop at every point of interest and perform the right action"""
+    """moveConveyor() is a dumb motion command."""
     with spfdb:
         cur = spfdb.cursor()
         cur.execute("select * from panel_panel")
@@ -147,28 +143,35 @@ def moveConveyor(length):
             print "trouble getting the panel info from the database"
             pass
 
+def startup():
+    """called on startup to pull all the init commands for the tinyG from the server and send them to the G"""
+    url = "http://internal.solarpocketfactory.com/startup/"
+    req = urllib2.Request(url)
+    urldata = urllib2.urlopen(req)
+    GCode = urldata.read()
+    executeCommand(GCode)
                          
 def incrementPoints(length):
+    """called after every conveyor motion to keep track of where all the points moved to"""
     for point in points:
         point.position+=length
         point.remainingDistance-=length
+    sortPoints()
+
+def sortPoints():  
+    """keep track of which points are still active and keep the list sorted by remaining distance"""
     points[:]=[point for point in points if point.remainingDistance>0] #get rid of points that have dropped off the edge of the earth/conveyor
     points.sort(key=lambda point: point.remainingDistance)  #sort the list, closest objects first
 
-def point():   
-    """move to next point in list"""
+
+def pointAction():   
+    """move to next point in list and do something there"""
     if len(points)>0:
         currentPoint=points[0]
         moveConveyor(currentPoint.remainingDistance)
-        with spfdb:
-            cur = spfdb.cursor()
-            cur.execute("select * from actions_actions")
-            try:
-                row = fetchoneDict(cur)
-                print row        
+        executeCommand(currentPoint.code)
 
-            
-def doWonders():
+def pullCommands():
     print("checking database")
     with spfdb:
         cur = spfdb.cursor()
@@ -177,107 +180,140 @@ def doWonders():
             row = fetchoneDict(cur)
             print row
             id=row['id']
-            parsable = row['json']
-            print("json code:  " + parsable)
-            for cmd in parsable.split():
-                cmd=cmd.replace("_", " ") #if we need a command with a space, use an underscore in the templates
-                if(cmd[0] == '!'):
-                    substr = cmd[1:]
-                    if(substr == '1'):
-                        tabbingCutterUp()
-                    elif(substr == '2'):
-                        tabbingCutterDown()
-                    elif(substr == '3'):
-                        pickHeadUp()
-                    elif(substr == '4'):
-                        pickHeadDown()
-                    elif(substr == '7'):
-                        vacuumGeneratorOn()
-                    elif(substr == '8'):
-                        vacuumGeneratorOff()
-                    elif(substr == '13'):
-                        testStationUp()
-                    elif(substr == '14'):
-                        testStationDown()
-                    elif(substr == '15'):
-                        solderingStationUp()
-                    elif(substr == '16'):
-                        solderingStationDown()
-                    elif(substr == '17'):
-                        solderingStationOn()
-                    elif(substr == '18'):
-                        solderingStationOff()
-                    elif(substr == '19'):
-                        lightsOn()
-                    elif(substr == '20'):
-                        lightsOff()
-                elif(cmd.find("mark")!=-1):
-                    parts=cmd.split(":")
-                    point=Point()
-                    point.pointType=parts[1]
-                    if len(points)>0:
-                        lastPoint=points[-1]
-                        point.position=lastPoint.position+float(parts[2])
-                    else:
-                        point.position=float(parts[2])
-                    
-                    #delete this hardcoded bullshit later and put in something better
-                    if(point.pointType=="start"):
-                        point.remainingDistance=655-point.position
-                    elif(point.pointType=="solder"):
-                        point.remainingDistance=443-point.position
-                    elif(point.pointType=="tabbing"):
-                        point.remainingDistance=311-point.position
-                    elif(point.pointType=="solette"):
-                        point.remainingDistance=316-point.position
-                    elif(point.pointType=="test"):
-                        point.remainingDistance=527-point.position
-                    elif(point.pointType=="end"):
-                        point.remainingDistance=655-point.position
-                    points.append(point)
-
-                elif(cmd.find("advance")!=-1):
-                    parts=cmd.split(":")
-                    advanceConveyor(float(parts[1]))
-
-                elif(cmd.find("point")!=-1):
-                    point()
-
-                elif(cmd[0]=='M'):  #conveyor command
-                    length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
-                    moveConveyor(float(length))
-                elif(cmd[0]=='P'):  #soldering power command
-                    power=cmd[1:]  # the rest of the command is the soldering power, from 0-100
-                    setSolderingPower(int(power))
-                elif(cmd[:3]=="G4P"):   #  intercept a sleep GCode command and run it on the pi rather than the G
-                    delay=float(cmd[3:])/1000
-                    print delay
-                    time.sleep(delay)
-                elif(cmd == 'g28.1'):
-                    cmd = parsable + chr(13)
-                    print cmd
-                    ser.write(cmd)
-                    flushReceiveBuffer()
-                    break
-                else:
-                    cmd = cmd + chr(13)
-                    print cmd
-                    ser.write(cmd)
-                    #we need to block until the serial RX buffer is 
-                    #empty as this will indicate that the tinyG 
-                    #is done with the motion     
-                    flushReceiveBuffer()
-
+            GCode = row['json']
+            executeCommand(GCode)
             str = "UPDATE command_command set status=\"executed\" where id='%s'" % id
             print str
             cur.execute(str)
-        except:   # no waiting commands
-            print "no waiting commands"
-#points.sort(key=Point.remainingDistance, reverse=True)
+        except Exception as e:   # no waiting commands
+            print "no pending commands"
             for point in points:
                 print point
+
+def executeCommand(GCode):
+    print("json code:  " + GCode)
+    print GCode.split()
+    for cmd in GCode.split():
+        print "executing command:  %s" % cmd
+        cmd=cmd.replace("_", " ") #if we need a command with a space, use an underscore in the templates
+        if(cmd[0] == '!'):
+            substr = cmd[1:]
+            if(substr == '1'):
+                tabbingCutterUp()
+            elif(substr == '2'):
+                tabbingCutterDown()
+            elif(substr == '3'):
+                pickHeadUp()
+            elif(substr == '4'):
+                pickHeadDown()
+            elif(substr == '7'):
+                vacuumGeneratorOn()
+            elif(substr == '8'):
+                vacuumGeneratorOff()
+            elif(substr == '13'):
+                testStationUp()
+            elif(substr == '14'):
+                testStationDown()
+            elif(substr == '15'):
+                solderingStationUp()
+            elif(substr == '16'):
+                solderingStationDown()
+            elif(substr == '17'):
+                solderingStationOn()
+            elif(substr == '18'):
+                solderingStationOff()
+            elif(substr == '19'):
+                lightsOn()
+            elif(substr == '20'):
+                lightsOff()
+        elif(cmd.find("point")!=-1):
+            print "adding a point of interest"
+            if(cmd.find(":")!=-1):
+                parts=cmd.split(":")
+                print parts
+                point=Point()
+                point.pointType=parts[1]
+                params={'actionType':point.pointType}
+                print params
+                print point
+                url="http://internal.solarpocketfactory.com/renderAction/"
+                data=urllib.urlencode(params)
+            # create your HTTP request                                                      
+                headers = { 'User-Agent' : 'solarPocketFactory',
+                            'Content-Type':'text/html; charset=utf-8',
+                            }
+                html=""
+                try:
+                    req = urllib2.Request(url, data, headers)
+                    print "submitting request"
+                    response = urllib2.urlopen(req)
+                    html = response.read()
+                    print html
+                    print "that's my HTML and I'm sticking to it"
+                except:
+                    print "Unexpected error:", sys.exc_info()[0]
+                point.code=html
+                positionPoints=sorted(points, key=lambda point:point.position)
+                print "positionPoints:"
+                for aPoint in positionPoints:
+                    print aPoint
+                if len(positionPoints)>0:
+                    print "got some points!"
+                    lastPoint=positionPoints[0]
+                    print lastPoint.position
+                    print parts[2]
+                    point.position=lastPoint.position+float(parts[2])
+                else:
+                    point.position=float(parts[2])
+                        
+                    #delete this hardcoded bullshit later and put in something better
+                if(point.pointType=="start"):
+                    point.remainingDistance=655-point.position
+                elif(point.pointType=="solder"):
+                    point.remainingDistance=443-point.position
+                elif(point.pointType=="tab"):
+                    point.remainingDistance=311-point.position
+                elif(point.pointType=="placeSolette"):
+                    point.remainingDistance=316-point.position
+                elif(point.pointType=="test"):
+                    point.remainingDistance=527-point.position
+                elif(point.pointType=="end"):
+                    point.remainingDistance=655-point.position
+                points.append(point)
+                sortPoints()
+                print "point appended"
+                for aPoint in points:
+                    print aPoint
+                print "done!"
+
+        elif(cmd.find("executePoint")!=-1):
+            pointAction()
             
-            pass
+        elif(cmd[0]=='M'):  #conveyor command
+            length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
+            moveConveyor(float(length))
+        elif(cmd[0]=='P'):  #soldering power command
+            power=cmd[1:]  # the rest of the command is the soldering power, from 0-100
+            setSolderingPower(int(power))
+        elif(cmd[:3]=="G4P"):   #  intercept a sleep GCode command and run it on the pi rather than the G
+            delay=float(cmd[3:])/1000
+            print delay
+            time.sleep(delay)
+        elif(cmd == 'g28.1'):
+            cmd = parsable + chr(13)
+            print cmd
+            ser.write(cmd)
+            flushReceiveBuffer()
+            break
+        else:
+            cmd = cmd + chr(13)
+            print cmd
+            ser.write(cmd)
+                    #we need to block until the serial RX buffer is 
+                    #empty as this will indicate that the tinyG 
+                    #is done with the motion     
+            flushReceiveBuffer()
+
         
 def fetchoneDict(cursor):
     row = cursor.fetchone()
@@ -354,8 +390,11 @@ def lightsOff():
     GPIO.output(TEST_LIGHTS, False)
 
 try:
+    print("pulling startup script to init tinyG")
+#    startup()
+    print("initialized and ready to go")
     while(True):
-        doWonders()
+        pullCommands()
         time.sleep(1)
 
 except KeyboardInterrupt:
