@@ -77,7 +77,7 @@ def getRemainingStroke():
             strokeEnd=float(row['stroke_end'])
             fullStroke=panelLength+strokeLead+strokeEnd
             if currentStroke>strokeLead:   #we're already into a stroke, we'll have to push out this panel before we get to the next one
-                return currentStroke
+                return panelLength-currentStroke
             else:
                 return 0
         except Exception as e:
@@ -182,16 +182,21 @@ def incrementPoints(length):
 
 def sortPoints():  
     """keep track of which points are still active and keep the list sorted by remaining distance"""
-    points[:]=[point for point in points if point.remainingDistance>0] #get rid of points that have dropped off the edge of the earth/conveyor
+#    points[:]=[point for point in points if point.remainingDistance>0] #get rid of points that have dropped off the edge of the earth/conveyor
     points.sort(key=lambda point: point.remainingDistance)  #sort the list, closest objects first
 
+
+def executeAll():
+    while len(points)>0:
+        pointAction()
 
 def pointAction():   
     """move to next point in list and do something there"""
     if len(points)>0:
-        currentPoint=points[0]
+        currentPoint=points.pop(0)
         moveConveyor(currentPoint.remainingDistance)
         executeCommand(currentPoint.code)
+
 
 def pullCommands():
     print("checking database")
@@ -315,8 +320,11 @@ def executeCommand(GCode):
                 lightsOff()
         elif(cmd.find("point")!=-1):
             addPoint(cmd)
+        elif(cmd.find("executeAll")!=-1):
+            executeAll()
         elif(cmd.find("execute")!=-1):
             pointAction()
+
             
         elif(cmd[0]=='M'):  #conveyor command
             length=cmd[1:]  # the rest of the command is the distance that the conveyor should move
