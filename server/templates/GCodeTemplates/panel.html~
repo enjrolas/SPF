@@ -1,2 +1,0 @@
-{% extends "placeSolette.html" %}
-{% block prefix %}
