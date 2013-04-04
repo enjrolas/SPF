@@ -64,8 +64,30 @@ spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passw
 print("connected!")
 
 
+def getRemainingStroke():
+    with spfdb:
+        cur = spfdb.cursor()
+        cur.execute("select * from panel_panel")
+        try:
+            print "pulling motion parameters from the database"
+            row = fetchoneDict(cur)
+            currentStroke=float(row['strokePosition'])
+            panelLength=float(row['length'])
+            strokeLead=float(row['stroke_lead'])
+            strokeEnd=float(row['stroke_end'])
+            fullStroke=panelLength+strokeLead+strokeEnd
+            if currentStroke>strokeLead:   #we're already into a stroke, we'll have to push out this panel before we get to the next one
+                return currentStroke
+            else:
+                return 0
+        except Exception as e:
+            print e
+            print "ruh roh.  Something went wrong"
+            return 0
+
+
 def moveConveyor(length):  
-    """moveConveyor() is a dumb motion command."""
+    """moveConveyor() takes in a desired distance to advance the conveyor, then generates the gcode commands to move the pusher back and forth, advancing all the panels that distance"""
     with spfdb:
         cur = spfdb.cursor()
         cur.execute("select * from panel_panel")
@@ -190,6 +212,71 @@ def pullCommands():
             for point in points:
                 print point
 
+def addPoint(cmd):
+    print "adding a point of interest"
+    if(cmd.find(":")!=-1):
+        parts=cmd.split(":")
+        print parts
+        point=Point()
+        point.pointType=parts[1]
+        params={'actionType':point.pointType}
+        print params
+        print point
+        url="http://internal.solarpocketfactory.com/renderAction/"
+        data=urllib.urlencode(params)
+            # create your HTTP request                                                      
+        headers = { 'User-Agent' : 'solarPocketFactory',
+                    'Content-Type':'text/html; charset=utf-8',
+                    }
+        html=""
+        try:
+            req = urllib2.Request(url, data, headers)
+            print "submitting request"
+            response = urllib2.urlopen(req)
+            html = response.read()
+            print html
+            print "that's my HTML and I'm sticking to it"
+        except:
+            print "Unexpected error:", sys.exc_info()[0]
+        point.code=html
+        positionPoints=sorted(points, key=lambda point:point.position)
+        print "positionPoints:"
+        for aPoint in positionPoints:
+            print aPoint
+        print "there are "+str(len(positionPoints)) + " position points"
+        if len(positionPoints)>0:
+            print "got some points!"
+            lastPoint=positionPoints[0]
+            print lastPoint.position
+            print parts[2]
+            point.position=lastPoint.position+float(parts[2])
+        else:
+            point.position=float(parts[2])
+            if point.pointType=="start":
+                print "remaining stroke is: "+str(getRemainingStroke())
+                point.position-=getRemainingStroke()           
+
+            
+        #delete this hardcoded bullshit later and put in something better
+        if(point.pointType=="start"):
+            point.remainingDistance=655-point.position
+        elif(point.pointType=="solder"):
+            point.remainingDistance=443-point.position
+        elif(point.pointType=="tab"):
+            point.remainingDistance=311-point.position
+        elif(point.pointType=="placeSolette"):
+            point.remainingDistance=316-point.position
+        elif(point.pointType=="test"):
+            point.remainingDistance=527-point.position
+        elif(point.pointType=="end"):
+            point.remainingDistance=655-point.position
+        points.append(point)
+        sortPoints()
+        print "point appended"
+        for aPoint in points:
+            print aPoint
+        print "done!"
+
 def executeCommand(GCode):
     print("json code:  " + GCode)
     print GCode.split()
@@ -227,66 +314,8 @@ def executeCommand(GCode):
             elif(substr == '20'):
                 lightsOff()
         elif(cmd.find("point")!=-1):
-            print "adding a point of interest"
-            if(cmd.find(":")!=-1):
-                parts=cmd.split(":")
-                print parts
-                point=Point()
-                point.pointType=parts[1]
-                params={'actionType':point.pointType}
-                print params
-                print point
-                url="http://internal.solarpocketfactory.com/renderAction/"
-                data=urllib.urlencode(params)
-            # create your HTTP request                                                      
-                headers = { 'User-Agent' : 'solarPocketFactory',
-                            'Content-Type':'text/html; charset=utf-8',
-                            }
-                html=""
-                try:
-                    req = urllib2.Request(url, data, headers)
-                    print "submitting request"
-                    response = urllib2.urlopen(req)
-                    html = response.read()
-                    print html
-                    print "that's my HTML and I'm sticking to it"
-                except:
-                    print "Unexpected error:", sys.exc_info()[0]
-                point.code=html
-                positionPoints=sorted(points, key=lambda point:point.position)
-                print "positionPoints:"
-                for aPoint in positionPoints:
-                    print aPoint
-                if len(positionPoints)>0:
-                    print "got some points!"
-                    lastPoint=positionPoints[0]
-                    print lastPoint.position
-                    print parts[2]
-                    point.position=lastPoint.position+float(parts[2])
-                else:
-                    point.position=float(parts[2])
-                        
-                    #delete this hardcoded bullshit later and put in something better
-                if(point.pointType=="start"):
-                    point.remainingDistance=655-point.position
-                elif(point.pointType=="solder"):
-                    point.remainingDistance=443-point.position
-                elif(point.pointType=="tab"):
-                    point.remainingDistance=311-point.position
-                elif(point.pointType=="placeSolette"):
-                    point.remainingDistance=316-point.position
-                elif(point.pointType=="test"):
-                    point.remainingDistance=527-point.position
-                elif(point.pointType=="end"):
-                    point.remainingDistance=655-point.position
-                points.append(point)
-                sortPoints()
-                print "point appended"
-                for aPoint in points:
-                    print aPoint
-                print "done!"
-
-        elif(cmd.find("executePoint")!=-1):
+            addPoint(cmd)
+        elif(cmd.find("execute")!=-1):
             pointAction()
             
         elif(cmd[0]=='M'):  #conveyor command
