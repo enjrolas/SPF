@@ -1,0 +1,60 @@
+def solderingStationOn():
+    print("solderingStationOn()")
+    GPIO.output(SOLDERING_ENABLE, True)
+
+def solderingStationOff():
+    print("solderingStationOff()")
+    GPIO.output(SOLDERING_ENABLE, False)
+
+def setSolderingPower(power):
+    print "setting soldering power to %d" % power
+    solderingPower.changeDutyCycle(100-power)
+
+def tabbingCutterDown():
+    print("tabbingCutterUp()")
+    GPIO.output(TABBING_CUTTER, False)
+
+def tabbingCutterUp():
+    print("tabbingCutterDown()")
+    GPIO.output(TABBING_CUTTER, True)
+
+def pickHeadDown():
+    print("pickHeadUp()")
+    GPIO.output(PICK_HEAD, False)
+
+def pickHeadUp():
+    print("pickHeadDown()")
+    GPIO.output(PICK_HEAD, True)
+
+def vacuumGeneratorOn():
+    print("suctionSolenoidOn()")
+    GPIO.output(VACUUM_GENERATOR, True)
+
+def vacuumGeneratorOff():
+    print("suctionSolenoidOff()")
+    GPIO.output(VACUUM_GENERATOR, False)
+
+def solderingStationUp():
+    print("solderingStationUp()")
+    GPIO.output(SOLDERING_STATION, False)
+
+def solderingStationDown():
+    print("solderingStationDown()")
+    GPIO.output(SOLDERING_STATION, True)
+
+def testStationUp():
+    print("testStationUp()")
+    GPIO.output(TEST_STATION, False)
+
+def testStationDown():
+    print("testStationDown()")
+    GPIO.output(TEST_STATION, True)
+
+def lightsOn():
+    print("lightsOn()")
+    GPIO.output(TEST_LIGHTS, True)
+
+def lightsOff():
+    print("lightsOff()")
+    GPIO.output(TEST_LIGHTS, False)
+
