@@ -33,7 +33,7 @@ if  __debug__:
     print("TinyG found! Connection established.")
 
 print("connecting to database....")
-spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="djangoSPF")
+spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="SPF-testing")
 print("connected!")
 
 
@@ -72,9 +72,7 @@ def moveConveyor(length):
             strokeLead=float(row['stroke_lead'])
             strokeEnd=float(row['stroke_end'])
             fullStroke=panelLength+strokeLead+strokeEnd
-            conveyorHeadPosition=float(row['conveyorHeadPosition'])
             print "current stroke position: %f" % currentStroke
-            print "conveyor head position: %f" % conveyorHeadPosition
             if(length>0):                
                 if(currentStroke+length)<fullStroke:   #  if we can perform this motion just by pushing the current panel, just do it
                     print "we can do this just by pushing the current backing"
@@ -92,7 +90,7 @@ def moveConveyor(length):
                         flushReceiveBuffer()
                     currentStroke=currentStroke+length
                     incrementPoints(length)
-                    mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
+                    mysqlString="UPDATE panel_panel set strokePosition=\"%f\" where id='1'" % currentStroke
                     print mysqlString
                     cur.execute(mysqlString) 
                 else:
@@ -127,10 +125,9 @@ def moveConveyor(length):
                         flushReceiveBuffer()
                     currentStroke+=length
                     incrementPoints(length)
-                    mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
+                    mysqlString="UPDATE panel_panel set strokePosition=\"%f\" where id='1'" % currentStroke
                     print mysqlString
                     cur.execute(mysqlString) 
-                    print "conveyor head position: %f" % conveyorHeadPosition                    
             else:
                 cmd="G0X"+str(length)+chr(13)  #advance the pusher until it's contacting the next panel
                 print cmd
@@ -138,8 +135,7 @@ def moveConveyor(length):
                     ser.write(cmd)
                     flushReceiveBuffer()
                 currentStroke+=length
-                conveyorHeadPosition+=length
-                mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
+                mysqlString="UPDATE panel_panel set strokePosition=\"%f\" where id='1'" % currentStroke
                 cur.execute(mysqlString) 
         except:
             traceback.print_exc(file=sys.stdout)            
@@ -350,7 +346,8 @@ def flushReceiveBuffer():
 
 try:
     print("pulling startup script to init tinyG")
-    startup()
+    if __debug__:
+        startup()
     print("initialized and ready to go")
     while(True):
         pullCommands()
