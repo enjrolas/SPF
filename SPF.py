@@ -20,16 +20,17 @@ solderingStationOff()
 solderingStationUp()
 ser = None
 port = "/dev/ttyUSB0"
-for tries in range(1,5):
-    try:
-        print("Establishing connection with TinyG through port " + port)
-        ser = serial.Serial(port, 115200)
-    except: 
-        pass
-if ser is None:
-        print("Cannot establish connection with TinyG. Exiting.")
-        sys.exit()
-print("TinyG found! Connection established.")
+if  __debug__:
+    for tries in range(1,5):
+        try:
+            print("Establishing connection with TinyG through port " + port)
+            ser = serial.Serial(port, 115200)
+        except: 
+            pass
+        if ser is None:
+            print("Cannot establish connection with TinyG. Exiting.")
+            sys.exit()
+    print("TinyG found! Connection established.")
 
 print("connecting to database....")
 spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="djangoSPF")
@@ -80,13 +81,15 @@ def moveConveyor(length):
                     if(currentStroke<strokeLead):
                         advance=strokeLead-currentStroke
                         cmd="G0X"+str(advance)+chr(13)
-                        ser.write(cmd)
-                        flushReceiveBuffer()
+                        if __debug__:
+                            ser.write(cmd)
+                            flushReceiveBuffer()
                         currentStroke=strokeLead
                         
                     cmd="G0X"+str(length)+chr(13)
-                    ser.write(cmd)
-                    flushReceiveBuffer()
+                    if __debug__:
+                        ser.write(cmd)
+                        flushReceiveBuffer()
                     currentStroke=currentStroke+length
                     incrementPoints(length)
                     mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
@@ -97,26 +100,31 @@ def moveConveyor(length):
                         print "we need to push at least two different backings to move this far"
                         remaining=fullStroke-currentStroke
                         cmd="G0X"+str(remaining)+chr(13)   #push what you can with the current panel
-                        ser.write(cmd)
-                        flushReceiveBuffer()
+                        if  __debug__:
+                            ser.write(cmd)
+                            flushReceiveBuffer()
                         length=length-remaining
                         print cmd
                         incrementPoints(remaining)
 
                         cmd="G0X-"+str(fullStroke)+chr(13)  #retract the pusher all the way
-                        ser.write(cmd)
-                        flushReceiveBuffer()
+                        if  __debug__:
+                            ser.write(cmd)
+                            flushReceiveBuffer()
                         print cmd
  
                         cmd="G0X"+str(strokeLead+strokeEnd)+chr(13)  #advance the pusher until it's contacting the next panel
-                        ser.write(cmd)
-                        flushReceiveBuffer()
+                        if  __debug__:
+                            ser.write(cmd)
+                            flushReceiveBuffer()
+
                         print cmd
                         currentStroke=strokeLead+strokeEnd
                     #now we've pushed all the full panels we need to push, and we just finish the last panel
                     cmd="G0X"+str(length)+chr(13)  #push the remaining distance
-                    ser.write(cmd)
-                    flushReceiveBuffer()
+                    if  __debug__:
+                        ser.write(cmd)
+                        flushReceiveBuffer()
                     currentStroke+=length
                     incrementPoints(length)
                     mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
@@ -126,8 +134,9 @@ def moveConveyor(length):
             else:
                 cmd="G0X"+str(length)+chr(13)  #advance the pusher until it's contacting the next panel
                 print cmd
-                ser.write(cmd)
-                flushReceiveBuffer()        
+                if __debug__:
+                    ser.write(cmd)
+                    flushReceiveBuffer()
                 currentStroke+=length
                 conveyorHeadPosition+=length
                 mysqlString="UPDATE panel_panel set strokePosition=\"%f\", conveyorHeadPosition=\"%f\" where id='1'" % (currentStroke, conveyorHeadPosition)
@@ -312,17 +321,17 @@ def executeCommand(GCode):
         elif(cmd == 'g28.1'):
             cmd = parsable + chr(13)
             print cmd
-            ser.write(cmd)
-            flushReceiveBuffer()
+            if __debug__:
+                ser.write(cmd)
+                flushReceiveBuffer()
             break
         else:
             cmd = cmd + chr(13)
             print cmd
-            ser.write(cmd)
-                    #we need to block until the serial RX buffer is 
-                    #empty as this will indicate that the tinyG 
-                    #is done with the motion     
-            flushReceiveBuffer()
+            if __debug__:
+                ser.write(cmd)
+                flushReceiveBuffer()
+
 
         
 def fetchoneDict(cursor):
