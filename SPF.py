@@ -139,7 +139,7 @@ def moveConveyor(length):
 
 def startup():
     """called on startup to pull all the init commands for the tinyG from the server and send them to the G"""
-    url = "http://internal.solarpocketfactory.com/startup/"
+    url = "http://testing.solarpocketfactory.com/startup/"
     req = urllib2.Request(url)
     urldata = urllib2.urlopen(req)
     GCode = urldata.read()
@@ -200,7 +200,7 @@ def addPoint(cmd):
         params={'actionType':point.pointType}
         print params
         print point
-        url="http://internal.solarpocketfactory.com/renderAction/"
+        url="http://testing.solarpocketfactory.com/renderAction/"
         data=urllib.urlencode(params)
             # create your HTTP request                                                      
         headers = { 'User-Agent' : 'solarPocketFactory',
