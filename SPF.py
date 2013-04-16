@@ -294,22 +294,17 @@ def restart():
 
 def update():    
     print "updating..."
-    req = urllib2("https://raw.github.com/enjrolas/SPF/testing/SPF.py")
     try:
-        response = urlopen(req)
-    except HTTPError as e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code
-    except URLError as e:
-        print 'We failed to reach a server.'
-        print 'Reason: ', e.reason
-    else:
-        contents=response.read()
+        code = urllib2.urlopen("https://raw.github.com/enjrolas/SPF/testing/SPF.py")
+        contents=code.read()
         print contents
         SPF=open('SPF.py','w')
         SPF.write(contents)
         SPF.close()
         restart()
+    except e
+        print e
+        print "uh-oh!"
 
 def fetchoneDict(cursor):
     row = cursor.fetchone()
