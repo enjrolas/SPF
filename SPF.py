@@ -302,7 +302,7 @@ def update():
         SPF.write(contents)
         SPF.close()
         restart()
-    except e
+    except e:
         print e
         print "uh-oh!"
 
