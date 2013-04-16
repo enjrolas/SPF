@@ -33,8 +33,12 @@ if  __debug__:
 
 print("connecting to database....")
 spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="djangoSPF")
-print("connected!")
-
+print("connected!  Having a look around..")
+cur = spfdb.cursor()
+cur.execute("show tables")
+results=cur.fetchall()
+for table in results:
+    print table
 
 def getRemainingStroke():
     with spfdb:
