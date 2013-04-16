@@ -32,7 +32,7 @@ if  __debug__:
     print("TinyG found! Connection established.")
 
 print("connecting to database....")
-spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="SPF-testing")
+spfdb = MySQLdb.connect(host="106.187.94.198",port=3306,user="haddock-SPF",passwd="fnnAdGVRQPTDxSEY",db="djangoSPF")
 print("connected!")
 
 
@@ -295,7 +295,7 @@ def restart():
 def update():    
     print "updating..."
     try:
-        code = urllib2.urlopen("https://raw.github.com/enjrolas/SPF/testing/SPF.py")
+        code = urllib2.urlopen("https://raw.github.com/enjrolas/SPF/master/SPF.py")
         contents=code.read()
         print contents
         SPF=open('SPF.py','w')
