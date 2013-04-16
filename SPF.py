@@ -293,6 +293,7 @@ def restart():
     print output
 
 def update():    
+    print "updating..."
     req = urllib2("https://raw.github.com/enjrolas/SPF/testing/SPF.py")
     try:
         response = urlopen(req)
@@ -303,8 +304,10 @@ def update():
         print 'We failed to reach a server.'
         print 'Reason: ', e.reason
     else:
+        contents=response.read()
+        print contents
         SPF=open('SPF.py','w')
-        SPF.write(response.read())
+        SPF.write(contents)
         SPF.close()
         restart()
 
