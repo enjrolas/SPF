@@ -204,10 +204,16 @@ def pullCommands():
             print row
             id=row['id']
             GCode = row['json']
-            executeCommand(GCode)
             str = "UPDATE command_command set status=\"executed\" where id='%s'" % id
-            print str
-            cur.execute(str)
+            if GCode.find("update")==-1:
+                executeCommand(GCode)
+                print str
+                cur.execute(str)
+            else:
+                print str
+                cur.execute(str)
+                update()
+
         except Exception as e:   # no waiting commands
             print "no pending commands"
             for point in points:
@@ -279,8 +285,29 @@ def executeCommand(GCode):
                 ser.write(cmd)
                 flushReceiveBuffer()
 
+def restart():
+    command = "/usr/bin/sudo /sbin/shutdown -r now"
+    import subprocess
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+    output = process.communicate()[0]
+    print output
 
-        
+def update():    
+    req = urllib2("https://raw.github.com/enjrolas/SPF/testing/SPF.py")
+    try:
+        response = urlopen(req)
+    except HTTPError as e:
+        print 'The server couldn\'t fulfill the request.'
+        print 'Error code: ', e.code
+    except URLError as e:
+        print 'We failed to reach a server.'
+        print 'Reason: ', e.reason
+    else:
+        SPF=open('SPF.py','w')
+        SPF.write(response.read())
+        SPF.close()
+        restart()
+
 def fetchoneDict(cursor):
     row = cursor.fetchone()
     if row is None: return None
