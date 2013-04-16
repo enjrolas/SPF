@@ -7,7 +7,6 @@ import serial
 import time
 import re
 import sys, traceback
-from factory import Point, Panel
 from hardware import *
 import pickle
 import urllib, urllib2
@@ -152,29 +151,48 @@ def startup():
                          
 def incrementPoints(length):
     """called after every conveyor motion to keep track of where all the points moved to"""
-    for point in points:
-        point.position+=length
-        point.remainingDistance-=length
-    sortPoints()
-
-def sortPoints():  
-    """keep track of which points are still active and keep the list sorted by remaining distance"""
-#    points[:]=[point for point in points if point.remainingDistance>0] #get rid of points that have dropped off the edge of the earth/conveyor
-    points.sort(key=lambda point: point.remainingDistance)  #sort the list, closest objects first
-
+    with spfdb:
+        cur = spfdb.cursor()
+        points=cur.execute("select * from point_point")
+        for row in cur:
+            try:
+                point = fetchoneDict(cur)
+                print point
+                id=point['id']
+                position=float(point['position'])
+                remainingDistance=float(point['remainingDistance'])
+                position+=length
+                remainingDistance-=length
+                str = "UPDATE point_point set position='%f',remainingDistance='%f' where id='%s'" % (position, remainingDistance, id)
+                update=spfdb.cursor()
+                print str
+                update.execute(str)
+            except Exception as e:   # no waiting commands
+                print e
 
 def executeAll():
-    while len(points)>0:
-        pointAction()
+    with spfdb:
+        cur = spfdb.cursor()
+        result=cur.execute("select * from point_point")
+        for point in cur:
+            pointAction()
+
 
 def pointAction():   
     """move to next point in list and do something there"""
-    if len(points)>0:
-        currentPoint=points.pop(0)
-        if currentPoint.pointType!="start" and currentPoint.pointType!="end":
-            moveConveyor(currentPoint.remainingDistance)
-            executeCommand(currentPoint.code)
-
+    with spfdb:
+        cur = spfdb.cursor()
+        cur.execute("select * from point_point order by remainingDistance ASC")
+        try:
+            point = fetchoneDict(cur)
+            print point
+            if point['pointType']!="start" and point['pointType']!="end":
+                moveConveyor(float(point['remainingDistance']))
+            executeCommand(point['code'])
+            cur.execute("delete from point_point where id='%s'" % point['id'])
+        except:
+            print "no points in queue"
+            
 
 def pullCommands():
     print("checking database")
@@ -194,71 +212,6 @@ def pullCommands():
             print "no pending commands"
             for point in points:
                 print point
-
-def addPoint(cmd):
-    print "adding a point of interest"
-    if(cmd.find(":")!=-1):
-        parts=cmd.split(":")
-        print parts
-        point=Point()
-        point.pointType=parts[1]
-        params={'actionType':point.pointType}
-        print params
-        print point
-        url="http://testing.solarpocketfactory.com/renderAction/"
-        data=urllib.urlencode(params)
-            # create your HTTP request                                                      
-        headers = { 'User-Agent' : 'solarPocketFactory',
-                    'Content-Type':'text/html; charset=utf-8',
-                    }
-        html=""
-        try:
-            req = urllib2.Request(url, data, headers)
-            print "submitting request"
-            response = urllib2.urlopen(req)
-            html = response.read()
-            print html
-            print "that's my HTML and I'm sticking to it"
-        except:
-            print "Unexpected error:", sys.exc_info()[0]
-        point.code=html
-        positionPoints=sorted(points, key=lambda point:point.position)
-        print "positionPoints:"
-        for aPoint in positionPoints:
-            print aPoint
-        print "there are "+str(len(positionPoints)) + " position points"
-        if len(positionPoints)>0:
-            print "got some points!"
-            lastPoint=positionPoints[0]
-            print lastPoint.position
-            print parts[2]
-            point.position=lastPoint.position+float(parts[2])
-        else:
-            point.position=float(parts[2])
-            if point.pointType=="start":
-                print "remaining stroke is: "+str(getRemainingStroke())
-                point.position-=getRemainingStroke()           
-
-            
-        #delete this hardcoded bullshit later and put in something better
-        if(point.pointType=="start"):
-            point.remainingDistance=655-point.position
-        elif(point.pointType=="solder"):
-            point.remainingDistance=443-point.position
-        elif(point.pointType=="tab"):
-            point.remainingDistance=311-point.position
-        elif(point.pointType=="placeSolette"):
-            point.remainingDistance=316-point.position
-        elif(point.pointType=="test"):
-            point.remainingDistance=527-point.position
-        elif(point.pointType=="end"):
-            point.remainingDistance=655-point.position
-        points.append(point)
-        sortPoints()
-        print "point appended"
-        for aPoint in points:
-            print aPoint
-        print "done!"
 
 def executeCommand(GCode):
     print("json code:  " + GCode)
@@ -296,8 +249,6 @@ def executeCommand(GCode):
                 lightsOn()
             elif(substr == '20'):
                 lightsOff()
-        elif(cmd.find("point")!=-1):
-            addPoint(cmd)
         elif(cmd.find("executeAll")!=-1):
             executeAll()
         elif(cmd.find("execute")!=-1):
