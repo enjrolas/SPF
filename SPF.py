@@ -10,6 +10,7 @@ import sys, traceback
 from hardware import *
 import pickle
 import urllib, urllib2
+import os
 
 
 points=[] #  
@@ -18,7 +19,12 @@ points=[] #
 solderingStationOff()
 solderingStationUp()
 ser = None
-port = "/dev/ttyUSB0"
+
+devList = os.popen("ls /dev/").read().split('\n')
+for dev in devList:
+    if dev.find("ttyUSB") > -1:
+        port = dev
+port = "/dev/" + port
 if  __debug__:
     for tries in range(1,5):
         try:
@@ -171,7 +177,7 @@ def incrementPoints(length):
                 update=spfdb.cursor()
                 print str
                 update.execute(str)
-            except Exception as e:   # no waiting commands
+            except Exception as e:  
                 print e
 
 def executeAll():
@@ -180,6 +186,41 @@ def executeAll():
         result=cur.execute("select * from point_point")
         for point in cur:
             pointAction()
+'''
+def eagleEye(distance):
+    homes the conveyor to the next eagle eye in the sequence 
+    the expected distance to the eagle eye is the parameter 'distance'
+    The function will move the conveyor 1mm short of the expected distance,
+    creep up on the eagle eye in 0.1mm increments, and once the conveyor reaches the
+    eagle eye, calculate the error and update the remaining distance of all preceding 
+    points to account for the error
+    moveConveyor(distance-1)  #advance to 1mm shy of the eagle eye
+    distanceTraveled=distance-1
+    increment=0.1
+    while(!GPIO.input(BACKINGS_SOLDERER)):
+        moveConveyor(increment)
+        distanceTraveled+=increment
+        if distanceTraveled > distance +1:  #we've gone 1mm over the mark, something is super wrong
+            print "sensor error--we've gone 1mm past where we thought the eagle eye should be, but we don't see anything.  Not updating any points.  Moving on"
+            return -1
+        
+    error=distance-distanceTraveled  # did we move more distance (error is negative) or less distance (error is positive) than we expected to move?
+    with spfdb:
+        cur = spfdb.cursor()
+        cur.execute("select * from panel_panel")
+        try:
+            print "pulling motion parameters from the database"
+            row = fetchoneDict(cur)
+            eagleEyePosition=float(row['eagleEyePosition'])
+        except:
+            print "hmm, some kinda narsty error"
+            eagleEyePosition=100  #this could give all kinds of grief
+
+        points=cur.execute("select * from point_point where position<%f" % eagleEyePosition)
+        for row in cur: 
+            point=fetchoneDict(cur)
+            id=row['id']
+'''
 
 
 def pointAction():   
@@ -190,7 +231,9 @@ def pointAction():
         try:
             point = fetchoneDict(cur)
             print point
-            if point['pointType']!="start" and point['pointType']!="end":
+            if point['pointType'] == "eagleEye":
+                eagleEye(float(point['remainingDistance']))
+            elif point['pointType']!="start" and point['pointType']!="end":
                 moveConveyor(float(point['remainingDistance']))
             executeCommand(point['code'])
             cur.execute("delete from point_point where id='%s'" % point['id'])
@@ -327,10 +370,15 @@ def flushReceiveBuffer():
 try:
     print("pulling startup script to init tinyG")
     if __debug__:
-        startup()
+        #startup()
+        print("startup")
     print("initialized and ready to go")
     while(True):
         pullCommands()
+        if eStop() is True:
+            print("EMERGENCY STOP")
+            ser.close()
+            restart()
         time.sleep(1)
 
 except KeyboardInterrupt:

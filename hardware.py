@@ -8,7 +8,7 @@ import RPi.GPIO as GPIO
 from pizypwm import *
 
 """ pin definitions on the raspberry pi"""
-E_STOP=3
+E_STOP=5
 BACKINGS_SOLDERER=15
 VACUUM_GENERATOR=7
 SOLDERING_STATION=8
@@ -18,6 +18,10 @@ TABBING_CUTTER=19
 SOLDERING_POWER=21
 SOLDERING_ENABLE=23
 PICK_HEAD=24
+
+VER_052a = False
+if GPIO.VERSION.find("0.5.2a") > -1:
+    VER_052a = True
 
 GPIO.setmode(GPIO.BOARD)
 #Sensors
@@ -33,6 +37,9 @@ GPIO.setup(TABBING_CUTTER, GPIO.OUT) # tabbing cutter solenoid
 GPIO.setup(SOLDERING_POWER, GPIO.OUT) # soldering power
 GPIO.setup(SOLDERING_ENABLE, GPIO.OUT) # soldering enable
 GPIO.setup(PICK_HEAD, GPIO.OUT) # pick head solenoid
+
+if VER_052a:
+    GPIO.add_event_detect(E_STOP, GPIO.FALLING)
 
 #set up the soldering power PWM output
 solderingPower = PiZyPwm(100, SOLDERING_POWER, GPIO.BOARD)
@@ -98,6 +105,12 @@ def lightsOn():
 def lightsOff():
     print("lightsOff()")
     GPIO.output(TEST_LIGHTS, False)
+
+def eStop():
+    if VER_052a:
+        return GPIO.event_detected(E_STOP)
+    else:
+        return False
 
 def hardwareCleanup():
     GPIO.cleanup()
