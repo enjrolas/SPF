@@ -147,7 +147,7 @@ def moveConveyor(length):
 
 def startup():
     """called on startup to pull all the init commands for the tinyG from the server and send them to the G"""
-    url = "http://testing.solarpocketfactory.com/startup/"
+    url = "http://internal.solarpocketfactory.com/startup/"
     req = urllib2.Request(url)
     urldata = urllib2.urlopen(req)
     GCode = urldata.read()
